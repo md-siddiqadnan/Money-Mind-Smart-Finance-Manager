@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Moneymind:
+  Keeps your money on track, smart like your mind</title>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+
+
+  .expense-section {
+    animation: fadeIn 0.5s ease;
+    font-family: Arial, sans-serif;
+    max-width: 600px;
+    margin: auto;
+  }
+
+  .expense-section select,
+  .expense-section input {
+    width: 100%;
+    max-width: 300px;
+    margin-top: 8px;
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+  }
+
+  .expense-section button.btn {
+    background: #2ecc71;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    margin-top: 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+
+  .expense-section button.btn:hover {
+    background: #27ae60;
+  }
+
+  .total-expenses {
+    margin-top: 20px;
+    font-weight: bold;
+    font-size: 18px;
+    color: #2c3e50;
+  }
+
+  #expenses-table {
+    width: 100%;
+    margin-top: 20px;
+    border-collapse: collapse;
+  }
+
+  #expenses-table th,
+  #expenses-table td {
+    padding: 10px;
+    border: 1px solid #ddd;
+    text-align: left;
+  }
+
+  #expenses-table thead {
+    background-color: #3498db;
+    color: white;
+  }
+
+  .delete-btn {
+    color: red;
+    cursor: pointer;
+    font-weight: bold;
+    border: none;
+    background: none;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes slideFadeIn {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Input + mic button containers */
+  .input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    animation: slideFadeIn 0.6s ease forwards;
+  }
+
+  /* Inputs */
+  .input-group input {
+    flex: 1;
+    padding: 10px;
+    font-size: 16px;
+    border: 2px solid #3498db;
+    border-radius: 6px;
+    background-color: #f7f9fc;
+    transition: border 0.3s, box-shadow 0.3s;
+  }
+
+  .input-group input:focus {
+    outline: none;
+    border-color: #2ecc71;
+    box-shadow: 0 0 8px rgba(46, 204, 113, 0.6);
+  }
+
+  /* Mic buttons */
+  .mic-btn {
+    font-size: 20px;
+    background: #ecf0f1;
+    border: none;
+    border-radius: 50%;
+    padding: 8px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+
+  .mic-btn:hover {
+    background: #d0d3d4;
+  }
+
+  /* Add Expense Button */
+  #add-expense-btn {
+    margin-top: 15px;
+    padding: 10px 20px;
+    font-weight: bold;
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    transition: background 0.3s, transform 0.2s;
+    animation: slideFadeIn 0.8s ease forwards;
+  }
+
+  #add-expense-btn:hover {
+    background: linear-gradient(135deg, #27ae60, #1e8449);
+    transform: scale(1.03);
+  }
+
+  /* Expenses Table */
+  #expenses-table {
+    width: 100%;
+    margin-top: 20px;
+    border-collapse: collapse;
+    animation: slideFadeIn 1s ease forwards;
+  }
+
+  #expenses-table th, #expenses-table td {
+    padding: 10px;
+    border: 1px solid #ccc;
+    text-align: left;
+  }
+
+  #expenses-table thead {
+    background-color: #34495e;
+    color: white;
+  }
+
+  /* Animation for new row entries */
+  .fade-in-row {
+    animation: slideFadeIn 0.6s ease forwards;
+  }
+
+  /* Fade-in animation for label and select */
+  @keyframes fadeInUp {
+    0% {
+      opacity: 0;
+      transform: translateY(15px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Style for the month label */
+  label[for="expense-month"] {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #34495e;
+    opacity: 0;
+    animation: fadeInUp 0.8s forwards;
+  }
+
+  /* Style for the month select */
+  #expense-month {
+    width: 100%;
+    max-width: 300px;
+    padding: 8px 12px;
+    font-size: 16px;
+    border: 2px solid #2980b9;
+    border-radius: 6px;
+    background: linear-gradient(145deg, #f0f4f8, #d9e2ec);
+    color: #34495e;
+    box-shadow: inset 2px 2px 5px #ffffff,
+                inset -2px -2px 5px #b8c6db;
+    cursor: pointer;
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    opacity: 0;
+    animation: fadeInUp 0.8s forwards;
+    animation-delay: 0.3s;
+  }
+
+  #expense-month:hover,
+  #expense-month:focus {
+    background: linear-gradient(145deg, #d6e0f0, #a9c3e5);
+    border-color: #1abc9c;
+    box-shadow: 0 0 8px #1abc9c;
+    outline: none;
+  }
+
+  /* Label style with color and fade-in animation */
+  label[for="expense-category"] {
+    display: block;
+    margin-top: 10px;
+    font-weight: 600;
+    color: #2b6e96;
+    opacity: 0;
+    animation: fadeIn 1s forwards;
+    animation-delay: 0.3s;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+  /* Select box with subtle gradient background, border, rounded corners */
+  #expense-category {
+    width: 100%;
+    max-width: 300px;
+    padding: 8px 12px;
+    margin-top: 5px;
+    font-size: 16px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #3563a0;
+    background: linear-gradient(145deg, #f0f4f8, #d9e2ec);
+    border: 2px solid #275f8d;
+    border-radius: 6px;
+    box-shadow: inset 2px 2px 5px #ffffff,
+                inset -2px -2px 5px #b8c6db;
+    cursor: pointer;
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    opacity: 0;
+    animation: fadeInUp 1s forwards;
+    animation-delay: 0.5s;
+  }
+
+  /* Hover and focus effect */
+  #expense-category:hover, 
+  #expense-category:focus {
+    background: linear-gradient(145deg, #d6e0f0, #a9c3e5);
+    border-color: #1abc9c;
+    box-shadow: 0 0 8px #1abc9c;
+    outline: none;
+  }
+
+  /* Fade-in keyframe for label */
+  @keyframes fadeIn {
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* Fade in and slight upward movement */
+  @keyframes fadeInUp {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+
+
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+  @keyframes gradientAnimation {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes tabGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+  body, html {
+  margin: 0; padding: 0; height: 100%;
+  font-family: 'Poppins', sans-serif;
+  background: linear-gradient(135deg, #d630a7 0%, #4076d4 25%, #fad0c4 50%, #ffd1ff 75%, #fbc2eb 100%);
+  background-size: 400% 400%;
+  animation: gradientAnimation 15s ease infinite;
+  transition: background 0.5s;
+}
+
+
+  :root {
+    --primary-color: #4a148c;
+    --secondary-color: #7e57c2;
+    --accent-color: #facc15;
+    --bg-color: #f0f4f8;
+    --text-color: #222;
+    --tab-bg: white;
+  }
+
+  /* Container */
+  .container {
+    max-width: 1100px;
+    margin: 20px auto;
+    padding: 20px;
+    background: var(--tab-bg);
+    border-radius: 16px;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+  }
+/* Dashboard Summary Cards */
+.dashboard-summary {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 20px;
+  gap: 15px;
+}
+
+.summary-card {
+  flex: 1;
+  padding: 15px 20px;
+  border-radius: 12px;
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+  transition: transform 0.3s ease;
+  cursor: default;
+}
+
+.summary-card:hover {
+  transform: scale(1.05);
+}
+
+.expenses-card {
+  background: linear-gradient(135deg, #ff6e7f, #bfe9ff);
+  color: #b71c1c;
+  box-shadow: 0 8px 20px rgba(255, 110, 127, 0.6);
+}
+
+.income-card {
+  background: linear-gradient(135deg, #43e97b, #38f9d7);
+  color: #004d40;
+  box-shadow: 0 8px 20px rgba(56, 249, 215, 0.6);
+}
+
+.balance-card {
+  background: linear-gradient(135deg, #f9d423, #ff4e50);
+  color: #4a148c;
+  box-shadow: 0 8px 20px rgba(255, 78, 80, 0.6);
+}
+
+/* Chart container with gradient background */
+.chart-container {
+  background: linear-gradient(135deg, #7f7fd5, #86a8e7, #91eae4);
+  border-radius: 15px;
+  padding: 15px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+/* Category colors */
+.category-Food {
+  background-color: #ffccbc; /* light orange */
+  color: #bf360c;
+}
+.category-Transport {
+  background-color: #bbdefb; /* light blue */
+  color: #0d47a1;
+}
+.category-Utilities {
+  background-color: #c8e6c9; /* light green */
+  color: #1b5e20;
+}
+.category-Entertainment {
+  background-color: #f3e5f5; /* light purple */
+  color: #4a148c;
+}
+.category-Health {
+  background-color: #ffcdd2; /* light red */
+  color: #b71c1c;
+}
+.category-Other {
+  background-color: #eeeeee; /* light gray */
+  color: #424242;
+}
+
+/* Animate new rows */
+@keyframes fadeInRow {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.expense-row {
+  animation: fadeInRow 0.4s ease forwards;
+  transition: background-color 0.3s;
+}
+
+.expense-row:hover {
+  filter: brightness(0.95);
+}
+.mic-btn {
+  background: var(--accent-color);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 38px;
+  text-align: center;
+  color: black;
+  box-shadow: 0 4px 12px rgba(250, 204, 21, 0.6);
+  transition: background 0.3s, transform 0.3s;
+  user-select: none;
+}
+
+.mic-btn:hover {
+  background: #fddb3a;
+  transform: scale(1.1);
+}
+
+.mic-btn.recording {
+  animation: pulse 1s infinite;
+  background: #ff5252;
+  color: white;
+  box-shadow: 0 0 15px 5px #ff5252aa;
+}
+#start-voice-income {
+  background-color: #007BFF;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  color: white;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+#start-voice-income::before {
+  content: "🎤";
+  display: inline-block;
+  font-size: 20px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+#start-voice-income:hover {
+  background-color: #0056b3;
+}
+
+#start-voice-income:active {
+  transform: scale(0.95);
+  background-color: #004494;
+}
+
+#start-voice-income[disabled] {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    border-bottom: 3px solid var(--primary-color);
+  }
+  
+.tab.active {
+  filter: brightness(1.2);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+  .tab {
+  flex: 1;
+  text-align: center;
+  padding: 12px 0;
+  cursor: pointer;
+  font-weight: 600;
+  color: white;
+  position: relative;
+  background: linear-gradient(45deg, #ff9a9e, #fad0c4, #fad0c4, #fbc2eb);
+  background-size: 300% 300%;
+  animation: tabGradient 8s ease infinite;
+  border-radius: 10px 10px 0 0;
+  margin: 0 2px;
+  transition: all 0.3s ease;
+}
+
+  .tab:hover {
+    color: var(--secondary-color);
+  }
+  .tab.active {
+  color: white;
+  background: linear-gradient(135deg, #43e97b, #38f9d7);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+
+  /* Content */
+  .tab-content {
+    padding: 15px;
+  }
+
+  /* Animated fade in */
+  .fade-in {
+    animation: fadeIn 0.5s ease forwards;
+  }
+  @keyframes fadeIn {
+    from {opacity: 0;}
+    to {opacity: 1;}
+  }
+
+  /* Buttons */
+  .btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 10px 18px;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 10px 5px 20px 0;
+    box-shadow: 0 5px 15px rgba(74, 20, 140, 0.4);
+    transition: background 0.3s;
+  }
+  .btn:hover {
+    background: var(--secondary-color);
+  }
+
+  /* Dropdowns & inputs */
+  select, input[type="number"], input[type="text"] {
+    padding: 8px 12px;
+    margin-right: 10px;
+    border-radius: 8px;
+    border: 2px solid var(--primary-color);
+    outline: none;
+    width: 150px;
+    font-size: 1rem;
+  }
+
+  /* Table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+  }
+  th, td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+  }
+  th {
+    background: var(--primary-color);
+    color: white;
+  }
+
+  /* Color theme button */
+  #themeBtn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--accent-color);
+    color: black;
+    font-weight: 700;
+    padding: 12px 20px;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 5px 15px rgba(250, 204, 21, 0.6);
+    transition: background 0.3s;
+  }
+  #themeBtn:hover {
+    background: #fddb3a;
+  }
+  .search-bar {
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  max-width: 500px;
+  border: 1px solid #ccc;
+  border-radius: 25px;
+  padding: 7px 9px;
+  background-color: #fff;
+}
+
+.search-bar input[type="text"] {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 8px 10px;
+  font-size: 14px;
+  border-radius: 25px;
+}
+
+.search-bar button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 5px;
+  color: #555;
+  transition: color 0.3s ease;
+}
+
+.search-bar button:hover {
+  color: #000;
+}
+
+</style>
+</head>
+<body>
+
+<button id="themeBtn" title="Change UI Color">Change Theme</button>
+
+<div class="container">
+  <h1 style="color: var(--primary-color); text-align:center;">Moneymind:
+    Keeps your money on track, smart like your mind</h1>
+
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-tab="dashboard">Dashboard</div>
+    <div class="tab" data-tab="expenses">Expenses</div>
+    <div class="tab" data-tab="income">Income</div>
+    <div class="tab" data-tab="reports">Reports</div>
+    <div class="tab" data-tab="budget">Budget</div>
+    <div class="tab" data-tab="settings">Settings</div>
+    
+
+<div class="search-bar">
+  <input type="text" placeholder="Ask AI" />
+  <button type="submit">send</button>
+</div>
+
+  </div>
+  <script src="chat.js"></script>
+  <script src="server.js"></script>
+  
+
+  <div class="tab-content" id="tab-content">
+    <!-- Content loaded by JS -->
+  </div>
+</div>
+
+<script>
+  
+  // Initialize Firebase (replace config with yours)
+ // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBQOraaLLNkk0P619ZuaJ2oynPLu6Zr7zY",
+  authDomain: "smart-finanace-manager.firebaseapp.com",
+  projectId: "smart-finanace-manager",
+  storageBucket: "smart-finanace-manager.firebasestorage.app",
+  messagingSenderId: "229938809168",
+  appId: "1:229938809168:web:be8ddd53be17802314c455",
+  measurementId: "G-ZVXH247594"
+};
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+
+  // Check auth state
+  auth.onAuthStateChanged(user => {
+    if (!user) {
+      // Not logged in, redirect to login
+      window.location.href = 'index.html';
+    }
+  });
+
+  // Sound effect on click
+  const clickSound = new Audio('https://actions.google.com/sounds/v1/cartoon/pop.ogg');
+  function playClick() {
+    clickSound.currentTime = 0;
+    clickSound.play();
+  }
+
+  // Tabs functionality
+  const tabs = document.querySelectorAll('.tab');
+  const tabContent = document.getElementById('tab-content');
+
+  const dataStore = {
+    expenses: [],
+    income: []
+  };
+
+  // For theme cycling
+  const themes = [
+    { '--primary-color': '#4a148c', '--secondary-color': '#7e57c2', '--accent-color': '#facc15', '--bg-color': '#f0f4f8', '--text-color': '#222', '--tab-bg': 'white' },
+    { '--primary-color': '#004d40', '--secondary-color': '#00796b', '--accent-color': '#cddc39', '--bg-color': '#e0f2f1', '--text-color': '#004d40', '--tab-bg': '#ffffff' },
+    { '--primary-color': '#b71c1c', '--secondary-color': '#e53935', '--accent-color': '#ffeb3b', '--bg-color': '#ffebee', '--text-color': '#b71c1c', '--tab-bg': '#ffffff' },
+    { '--primary-color': '#1a237e', '--secondary-color': '#3949ab', '--accent-color': '#ffca28', '--bg-color': '#e8eaf6', '--text-color': '#1a237e', '--tab-bg': '#ffffff' }
+  ];
+  let currentTheme = 0;
+  const themeBtn = document.getElementById('themeBtn');
+  themeBtn.addEventListener('click', () => {
+    playClick();
+    currentTheme = (currentTheme + 1) % themes.length;
+    const theme = themes[currentTheme];
+    for (const key in theme) {
+      document.documentElement.style.setProperty(key, theme[key]);
+    }
+  });
+
+  // Tab content templates
+  const templates = {
+    dashboard: `
+      <h2>Dashboard</h2>
+      <canvas id="dashboardChart" width="400" height="200"></canvas>
+    `,
+    expenses: `
+  <h2>Expenses</h2>
+  <label for="expense-month">Select Month:</label>
+  <select id="expense-month">
+    <option value="January">January</option><option value="February">February</option><option value="March">March</option>
+    <option value="April">April</option><option value="May">May</option><option value="June">June</option>
+    <option value="July">July</option><option value="August">August</option><option value="September">September</option>
+    <option value="October">October</option><option value="November">November</option><option value="December">December</option>
+  </select>
+  <label for="expense-category">Select Category:</label>
+<select id="expense-category">
+  <option value="Food">Food</option>
+  <option value="Transport">Transport</option>
+  <option value="Entertainment">Entertainment</option>
+  <option value="Utilities">Utilities</option>
+  <option value="Health">Health</option>
+  <option value="Education">Education</option>
+  <option value="Shopping">Shopping</option>
+  <option value="Travel">Travel</option>
+  <option value="Rent">Rent</option>
+  <option value="Insurance">Insurance</option>
+  <option value="Gifts">Gifts</option>
+  <option value="Savings">Savings</option>
+  <option value="Personal Care">Personal Care</option>
+  <option value="Subscriptions">Subscriptions</option>
+  <option value="Childcare">Childcare</option>
+  <option value="Pets">Pets</option>
+  <option value="Taxes">Taxes</option>
+  <option value="Debt Payments">Debt Payments</option>
+  <option value="Home Maintenance">Home Maintenance</option>
+  <option value="Car Maintenance">Car Maintenance</option>
+  <option value="Charity">Charity</option>
+  <option value="Other">Other</option>
+</select>
+
+  <div style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+    <input type="text" id="expense-desc" placeholder="Expense description" style="flex:1;"/>
+    <button id="desc-mic" title="Voice input description" class="mic-btn" aria-label="Voice input description">&#127908;</button>
+  </div>
+  <div style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+    <input type="number" id="expense-amount" placeholder="Amount" min="0" step="0.01" style="flex:1;"/>
+    <button id="amount-mic" title="Voice input amount" class="mic-btn" aria-label="Voice input amount">&#127908;</button>
+  </div>
+  <button class="btn" id="add-expense-btn" style="margin-top:15px;">Add Expense</button>
+
+  <table id="expenses-table">
+    <thead><tr><th>Description</th><th>Amount</th><th>Month</th></tr></thead>
+    <tbody></tbody>
+  </table>
+`,
+
+    income: `
+      <h2>Income</h2>
+      <label for="income-month">Select Month:</label>
+      <select id="income-month">
+        <option value="January">January</option><option value="February">February</option><option value="March">March</option>
+        <option value="April">April</option><option value="May">May</option><option value="June">June</option>
+        <option value="July">July</option><option value="August">August</option><option value="September">September</option>
+        <option value="October">October</option><option value="November">November</option><option value="December">December</option>
+      </select>
+      
+      <input type="text" id="income-desc" placeholder="Income source" />
+      <input type="number" id="income-amount" placeholder="Amount" min="0" step="0.01"/>
+      <button class="btn" id="add-income-btn">Add Income</button>
+      
+      <button id="start-voice-income" title="Speak">
+  <i class="fas fa-microphone"></i>
+</button>
+
+
+      <table id="income-table">
+  <thead>
+    <tr><th>Source</th><th>Amount</th><th>Month</th><th>Action</th></tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+    `,
+    reports: `
+      <h2>Reports</h2>
+      <canvas id="reportsChart" width="400" height="200"></canvas>
+      <div>
+        <button class="btn" id="export-csv-btn">Export CSV</button>
+        <button class="btn" id="export-pdf-btn">Export PDF</button>
+      </div>
+    `,
+    budget: `
+    <h2>Budget</h2>
+
+<label for="budget-month">Select Month:</label>
+<select id="budget-month">
+  <option value="January">January</option>
+  <option value="February">February</option>
+  <option value="March">March</option>
+  <option value="April">April</option>
+  <option value="May">May</option>
+  <option value="June">June</option>
+  <option value="July">July</option>
+  <option value="August">August</option>
+  <option value="September">September</option>
+  <option value="October">October</option>
+  <option value="November">November</option>
+  <option value="December">December</option>
+</select>
+
+<label for="budget-amount">Monthly Budget Amount:</label>
+<input type="number" id="budget-amount" placeholder="Enter budget amount" min="0" step="0.01" />
+
+<button id="save-budget-btn" class="btn">Save Budget</button>
+
+<p id="budget-display"></p>
+    `,
+    
+    settings: `
+      <h2>Settings</h2>
+      <button class="btn" id="logout-btn">Log Out</button>
+    `
+  };
+  function setupBudgetTab() {
+  const monthSelect = document.getElementById('budget-month');
+  const amountInput = document.getElementById('budget-amount');
+  const saveBtn = document.getElementById('save-budget-btn');
+  const display = document.getElementById('budget-display');
+
+  // Load budget from localStorage for selected month
+  function loadBudget() {
+    const month = monthSelect.value;
+    const savedBudget = localStorage.getItem('budget-' + month);
+    if (savedBudget !== null) {
+      amountInput.value = savedBudget;
+      display.textContent = `Budget for ${month}: $${parseFloat(savedBudget).toFixed(2)}`;
+    } else {
+      amountInput.value = '';
+      display.textContent = `No budget set for ${month}.`;
+    }
+  }
+
+  // Save budget for the selected month
+  saveBtn.addEventListener('click', () => {
+    playClick();
+    const month = monthSelect.value;
+    const amount = parseFloat(amountInput.value);
+    if (isNaN(amount) || amount < 0) {
+      alert('Please enter a valid budget amount.');
+      return;
+    }
+    localStorage.setItem('budget-' + month, amount.toFixed(2));
+    display.textContent = `Budget for ${month} saved: $${amount.toFixed(2)}`;
+  });
+
+  // Reload budget when month changes
+  monthSelect.addEventListener('change', () => {
+    playClick();
+    loadBudget();
+  });
+
+  // Initial load
+  loadBudget();
+}
+
+  function renderTab(tab) {
+    tabContent.innerHTML = templates[tab];
+    tabContent.classList.add('fade-in');
+    setTimeout(() => tabContent.classList.remove('fade-in'), 500);
+    playClick();
+
+    // Setup tab-specific handlers:
+    if(tab === 'expenses') setupExpensesTab();
+    if(tab === 'income') setupIncomeTab();
+    if(tab === 'dashboard') setupDashboardTab();
+    if(tab === 'reports') setupReportsTab();
+    if(tab === 'settings') setupSettingsTab();
+    if(tab === 'budget') setupBudgetTab();
+  }
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      playClick();
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      renderTab(tab.dataset.tab);
+    });
+  });
+
+  // Expenses Tab
+  function setupExpensesTab() {
+  const addBtn = document.getElementById('add-expense-btn');
+  const descInput = document.getElementById('expense-desc');
+  const amountInput = document.getElementById('expense-amount');
+  const monthSelect = document.getElementById('expense-month');
+  const tableBody = document.querySelector('#expenses-table tbody');
+
+  const descMicBtn = document.getElementById('desc-mic');
+  const amountMicBtn = document.getElementById('amount-mic');
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognition = SpeechRecognition ? new SpeechRecognition() : null;
+
+  if (recognition) {
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+  } else {
+    descMicBtn.disabled = true;
+    amountMicBtn.disabled = true;
+    descMicBtn.title = "Speech Recognition not supported";
+    amountMicBtn.title = "Speech Recognition not supported";
+  }
+
+  function toggleRecognition(inputField, micBtn) {
+    if (!recognition) return;
+
+    if (micBtn.classList.contains('recording')) {
+      recognition.stop();
+      micBtn.classList.remove('recording');
+    } else {
+      recognition.start();
+      micBtn.classList.add('recording');
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        if (inputField === amountInput) {
+          // Extract number from transcript, accept only digits and dot
+          const numberMatch = transcript.match(/[\d\.]+/);
+          if (numberMatch) {
+            inputField.value = numberMatch[0];
+          }
+        } else {
+          inputField.value = transcript;
+        }
+        micBtn.classList.remove('recording');
+      };
+      recognition.onerror = () => {
+        micBtn.classList.remove('recording');
+      };
+      recognition.onend = () => {
+        micBtn.classList.remove('recording');
+      };
+    }
+  }
+
+  descMicBtn.onclick = () => {
+    playClick();
+    toggleRecognition(descInput, descMicBtn);
+  };
+
+  amountMicBtn.onclick = () => {
+    playClick();
+    toggleRecognition(amountInput, amountMicBtn);
+  };
+
+  function speak(text) {
+    if (!window.speechSynthesis) return;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function renderExpenses() {
+    tableBody.innerHTML = '';
+    dataStore.expenses.forEach(({ desc, amount, month }) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${desc}</td><td>$${parseFloat(amount).toFixed(2)}</td><td>${month}</td>`;
+      tableBody.appendChild(tr);
+    });
+  }
+
+  addBtn.onclick = () => {
+    playClick();
+    const desc = descInput.value.trim();
+    const amount = amountInput.value;
+    const month = monthSelect.value;
+    if (!desc || !amount || amount <= 0) {
+      alert('Enter valid description and amount');
+      speak('Please enter a valid description and amount.');
+      return;
+    }
+    dataStore.expenses.push({ desc, amount, month });
+    descInput.value = '';
+    amountInput.value = '';
+    renderExpenses();
+    updateDashboardChart();
+
+    speak(`Added expense ${desc} for $${parseFloat(amount).toFixed(2)} in ${month}`);
+  };
+
+  renderExpenses();
+}
+
+
+  // Income Tab
+  
+  function setupIncomeTab() {
+    const addBtn = document.getElementById('add-income-btn');
+    const descInput = document.getElementById('income-desc');
+    const amountInput = document.getElementById('income-amount');
+    const monthSelect = document.getElementById('income-month');
+    const tableBody = document.querySelector('#income-table tbody');
+
+    function renderIncome() {
+      tableBody.innerHTML = '';
+      dataStore.income.forEach(({desc, amount, month}) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${desc}</td><td>$${parseFloat(amount).toFixed(2)}</td><td>${month}</td>`;
+        tableBody.appendChild(tr);
+      });
+    }
+
+    addBtn.onclick = () => {
+      playClick();
+      const desc = descInput.value.trim();
+      const amount = amountInput.value;
+      const month = monthSelect.value;
+      if(!desc || !amount || amount <= 0) {
+        alert('Enter valid source and amount');
+        return;
+      }
+      dataStore.income.push({desc, amount, month});
+      descInput.value = '';
+      amountInput.value = '';
+      renderIncome();
+      updateDashboardChart();
+    };
+    const voiceBtn = document.getElementById("start-voice-income");
+const incomeDescInput = document.getElementById("income-desc");
+
+let recognition;
+
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.lang = 'en-US';
+  recognition.interimResults = false;
+
+  recognition.onresult = function (event) {
+    const transcript = event.results[0][0].transcript;
+    incomeDescInput.value = transcript;
+  };
+
+  recognition.onerror = function (event) {
+    console.error("Speech recognition error:", event.error);
+    alert("Error: " + event.error);
+  };
+
+  voiceBtn.addEventListener("click", () => {
+    recognition.start();
+  });
+
+} else {
+  voiceBtn.disabled = true;
+  voiceBtn.title = "Voice input not supported in this browser.";
+}
+
+    renderIncome();
+  }
+
+  // Dashboard Tab
+  let dashboardChart;
+  function setupDashboardTab() {
+    const ctx = document.getElementById('dashboardChart').getContext('2d');
+    if(dashboardChart) dashboardChart.destroy();
+
+    dashboardChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: getMonths(),
+        datasets: [
+          {
+            label: 'Expenses',
+            backgroundColor: 'rgba(255,99,132,0.6)',
+            data: getMonthlyTotals(dataStore.expenses)
+          },
+          {
+            label: 'Income',
+            backgroundColor: 'rgba(54,162,235,0.6)',
+            data: getMonthlyTotals(dataStore.income)
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  function getMonths() {
+    return ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  }
+
+  function getMonthlyTotals(items) {
+    const totals = new Array(12).fill(0);
+    items.forEach(({amount, month}) => {
+      const idx = getMonths().indexOf(month);
+      if(idx !== -1) totals[idx] += parseFloat(amount);
+    });
+    return totals;
+  }
+
+  function updateDashboardChart() {
+    if(dashboardChart) {
+      dashboardChart.data.datasets[0].data = getMonthlyTotals(dataStore.expenses);
+      dashboardChart.data.datasets[1].data = getMonthlyTotals(dataStore.income);
+      dashboardChart.update();
+    }
+  }
+
+  // Reports Tab
+  function setupReportsTab() {
+    const ctx = document.getElementById('reportsChart').getContext('2d');
+    const totalExpenses = getMonthlyTotals(dataStore.expenses).reduce((a,b)=>a+b,0);
+    const totalIncome = getMonthlyTotals(dataStore.income).reduce((a,b)=>a+b,0);
+    const balance = totalIncome - totalExpenses;
+
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Expenses', 'Income', 'Balance'],
+        datasets: [{
+          label: 'Financial Report',
+          data: [totalExpenses, totalIncome, balance],
+          backgroundColor: ['rgba(255,99,132,0.6)', 'rgba(54,162,235,0.6)', 'rgba(75,192,192,0.6)'],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true
+      }
+    });
+
+    // Export buttons
+    document.getElementById('export-csv-btn').onclick = () => {
+      playClick();
+      exportCSV();
+    };
+    document.getElementById('export-pdf-btn').onclick = () => {
+      playClick();
+      exportPDF();
+    };
+  }
+
+  // Export CSV
+  function exportCSV() {
+    let csv = 'Type,Description,Amount,Month\n';
+    dataStore.expenses.forEach(e => csv += `Expense,${e.desc},${e.amount},${e.month}\n`);
+    dataStore.income.forEach(i => csv += `Income,${i.desc},${i.amount},${i.month}\n`);
+    const blob = new Blob([csv], {type: 'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'finance_data.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // Export PDF
+  async function exportPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    doc.setFontSize(18);
+    doc.text('Finance Manager Report', 14, 22);
+
+    doc.setFontSize(12);
+    let y = 30;
+    doc.text('Expenses:', 14, y);
+    y += 6;
+    dataStore.expenses.forEach(e => {
+      doc.text(`${e.desc} - $${parseFloat(e.amount).toFixed(2)} (${e.month})`, 14, y);
+      y += 6;
+    });
+
+    y += 10;
+    doc.text('Income:', 14, y);
+    y += 6;
+    dataStore.income.forEach(i => {
+      doc.text(`${i.desc} - $${parseFloat(i.amount).toFixed(2)} (${i.month})`, 14, y);
+      y += 6;
+    });
+
+    doc.save('finance_report.pdf');
+  }
+
+  // Settings Tab
+  function setupSettingsTab() {
+    const logoutBtn = document.getElementById('logout-btn');
+    logoutBtn.onclick = () => {
+      playClick();
+      auth.signOut().then(() => {
+        alert('Logged out');
+        window.location.href = 'index.html';
+      });
+    };
+  }
+
+  // Initially render dashboard tab
+  renderTab('dashboard');
+
+</script>
+</body>
+</html>
